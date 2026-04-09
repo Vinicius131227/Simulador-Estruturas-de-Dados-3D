@@ -4,129 +4,190 @@ import { VisualizadorPilha } from './VisualizadorPilha.js';
 import { VisualizadorFila } from './VisualizadorFila.js';
 import { VisualizadorArvore } from './VisualizadorArvore.js';
 import { VisualizadorGrafo } from './VisualizadorGrafo.js';
+import { VisualizadorMatriz } from './VisualizadorMatriz.js';
 
-let cena, renderizador, cameraAtiva;
-let cameraPerspectiva, cameraOrtografica;
+let cena, renderizador, cameraAtiva, cameraPersp, cameraOrtho;
 let estruturaAtual = null;
-let tipoAtual = 'ordenacao'; 
+let tipoAtual = '';
 
 function inicializar() {
+    // 1. Configuração da Cena
     cena = new THREE.Scene();
     cena.background = new THREE.Color(0x050505);
+    
     const aspect = window.innerWidth / window.innerHeight;
 
-    // Configuração das Câmeras
-    cameraPerspectiva = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
-    cameraPerspectiva.position.set(0, 5, 12); 
+    // 2. Configuração das Câmeras (Requisito: Pelo menos duas câmeras)
+    cameraPersp = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
+    cameraPersp.position.set(0, 10, 15);
 
-    const d = 15;
-    cameraOrtografica = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
-    cameraOrtografica.position.set(0, 20, 0);
-    cameraOrtografica.lookAt(0, 0, 0);
+    const d = 12;
+    cameraOrtho = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
+    cameraOrtho.position.set(0, 25, 0);
+    cameraOrtho.lookAt(0, 0, 0);
 
-    cameraAtiva = cameraPerspectiva;
+    cameraAtiva = cameraPersp;
 
+    // 3. Renderizador
     renderizador = new THREE.WebGLRenderer({ antialias: true });
     renderizador.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderizador.domElement);
 
-    // Luzes
-    const luzDir = new THREE.DirectionalLight(0xffffff, 2);
-    luzDir.position.set(5, 10, 5);
-    cena.add(luzDir);
-    cena.add(new THREE.AmbientLight(0x404040, 2));
-    
-    // Iniciar com a primeira estrutura
+    // 4. Iniciar com a primeira estrutura (Ordenação)
     trocarEstrutura('ordenacao');
 
+    // 5. Eventos
     window.addEventListener('keydown', tratarTeclado);
     window.addEventListener('resize', tratarRedimensionamento);
 
     animar();
 }
 
+/**
+ * Limpa a cena e os recursos de memória antes de trocar de estrutura
+ */
 function limparCena() {
-    // Remove tudo o que for Mesh, Line ou Grid da cena
-    const paraRemover = [];
-    cena.traverse((child) => {
-        if (child.isMesh || child.isLine || child.isGridHelper) {
-            paraRemover.push(child);
-        }
-    });
-    paraRemover.forEach(obj => cena.remove(obj));
-    cena.add(new THREE.GridHelper(20, 20, 0x333333, 0x111111));
+    if (estruturaAtual && estruturaAtual.limpar) {
+        estruturaAtual.limpar();
+    }
+    
+    // Remove todos os objetos, luzes e auxiliares da cena
+    while(cena.children.length > 0) { 
+        const obj = cena.children[0];
+        if(obj.geometry) obj.geometry.dispose();
+        if(obj.material) obj.material.dispose();
+        cena.remove(obj); 
+    }
+
+    // Restaura a Iluminação (Essencial para texturas e materiais Standard)
+    const luzDirecional = new THREE.DirectionalLight(0xffffff, 2);
+    luzDirecional.position.set(5, 10, 7);
+    cena.add(luzDirecional);
+    
+    const luzAmbiente = new THREE.AmbientLight(0x404040, 2.5);
+    cena.add(luzAmbiente);
+
+    // Grade de referência (GridHelper)
+    const grade = new THREE.GridHelper(25, 25, 0x333333, 0x111111);
+    cena.add(grade);
 }
 
+/**
+ * Gerencia a troca entre as 6 estruturas solicitadas
+ */
 function trocarEstrutura(tipo) {
-    console.log("Trocando para:", tipo);
+    console.log("Visualizando: " + tipo.toUpperCase());
     limparCena();
     tipoAtual = tipo;
 
     switch(tipo) {
-        case 'ordenacao':
-            estruturaAtual = new VisualizadorOrdenacao(cena, 10);
-            cameraPerspectiva.position.set(5, 5, 12);
+        case 'ordenacao': 
+            estruturaAtual = new VisualizadorOrdenacao(cena, 15); 
             break;
-        case 'pilha':
-            estruturaAtual = new VisualizadorPilha(cena);
-            cameraPerspectiva.position.set(0, 5, 12);
+        case 'pilha': 
+            estruturaAtual = new VisualizadorPilha(cena); 
             break;
-        case 'fila':
-            estruturaAtual = new VisualizadorFila(cena);
-            cameraPerspectiva.position.set(0, 5, 12);
+        case 'fila': 
+            estruturaAtual = new VisualizadorFila(cena); 
             break;
-        case 'arvore':
-            estruturaAtual = new VisualizadorArvore(cena);
-            estruturaAtual.gerarArvore(0, 6, 0, 0);
-            cameraPerspectiva.position.set(0, 2, 15);
+        case 'arvore': 
+            estruturaAtual = new VisualizadorArvore(cena); 
+            estruturaAtual.gerarArvore(0, 6, 0, 0); 
             break;
-        case 'grafo':
-            estruturaAtual = new VisualizadorGrafo(cena);
+        case 'grafo': 
+            estruturaAtual = new VisualizadorGrafo(cena); 
+            estruturaAtual.desenhar(); 
+            break;
+        case 'matriz':
+            estruturaAtual = new VisualizadorMatriz(cena);
             estruturaAtual.desenhar();
-            cameraPerspectiva.position.set(0, 2, 12);
             break;
     }
-    cameraPerspectiva.lookAt(0, 0, 0);
+
+    // Reposiciona a câmera para focar no centro da nova estrutura
+    cameraPersp.position.set(0, 8, 12);
+    cameraPersp.lookAt(0, 0, 0);
 }
 
-function tratarTeclado(evento) {
-    const tecla = evento.key;
-    console.log("Tecla pressionada:", tecla);
-
-    if (tecla === '1') trocarEstrutura('ordenacao');
-    if (tecla === '2') trocarEstrutura('pilha');
-    if (tecla === '3') trocarEstrutura('fila');
-    if (tecla === '4') trocarEstrutura('arvore');
-    if (tecla === '5') trocarEstrutura('grafo');
-
-    // Interações
-    const t = tecla.toLowerCase();
-    if (t === 'w' && estruturaAtual.empilhar) estruturaAtual.empilhar();
-    if (t === 'w' && estruturaAtual.enfileirar) estruturaAtual.enfileirar();
-    if (t === 's' && estruturaAtual.desempilhar) estruturaAtual.desempilhar();
-    if (t === 's' && estruturaAtual.desenfileirar) estruturaAtual.desenfileirar();
-    if (t === 'd' && estruturaAtual.mostrarCaminhoCurto) estruturaAtual.mostrarCaminhoCurto();
+/**
+ * Mapeamento de Teclado para Algoritmos e Interações
+ */
+function tratarTeclado(e) {
+    const tecla = e.key.toLowerCase();
     
-    if (t === 'c') cameraAtiva = (cameraAtiva === cameraPerspectiva) ? cameraOrtografica : cameraPerspectiva;
+    // Seleção de Estrutura (Teclas 1 a 6)
+    const seletor = {
+        '1': 'ordenacao', 
+        '2': 'pilha', 
+        '3': 'fila', 
+        '4': 'arvore', 
+        '5': 'grafo', 
+        '6': 'matriz'
+    };
+    
+    if (seletor[tecla]) {
+        trocarEstrutura(seletor[tecla]);
+        return;
+    }
+
+    // Troca de Câmera (Requisito: Pelo menos duas câmeras)
+    if (tecla === 'c') {
+        cameraAtiva = (cameraAtiva === cameraPersp) ? cameraOrtho : cameraPersp;
+    }
+
+    // --- LOGICA DE ALGORITMOS DE ORDENAÇÃO (Modo 1) ---
+    if (tipoAtual === 'ordenacao') {
+        if (tecla === 'b') estruturaAtual.bubbleSort();
+        if (tecla === 'i') estruturaAtual.insertionSort();
+        if (tecla === 's') estruturaAtual.selectionSort();
+        if (tecla === 'q') estruturaAtual.quickSort();
+        if (tecla === 'h') estruturaAtual.heapSort();
+    }
+
+    // --- LOGICA DE GRAFOS (Modo 5) ---
+    if (tipoAtual === 'grafo') {
+        if (tecla === 'a') estruturaAtual.rodarDijkstra();
+        if (tecla === 'b') estruturaAtual.rodarBellmanFord();
+    }
+
+    // --- OPERAÇÕES BÁSICAS (Pilha e Fila) ---
+    if (tecla === 'w' && estruturaAtual) {
+        if (estruturaAtual.empilhar) estruturaAtual.empilhar();
+        if (estruturaAtual.enfileirar) estruturaAtual.enfileirar();
+    }
+    if (tecla === 's' && estruturaAtual) {
+        if (estruturaAtual.desempilhar) estruturaAtual.desempilhar();
+        if (estruturaAtual.desenfileirar) estruturaAtual.desenfileirar();
+    }
 }
 
 function tratarRedimensionamento() {
     const largura = window.innerWidth;
     const altura = window.innerHeight;
     renderizador.setSize(largura, altura);
-    cameraPerspectiva.aspect = largura / altura;
-    cameraPerspectiva.updateProjectionMatrix();
+    
+    cameraPersp.aspect = largura / altura;
+    cameraPersp.updateProjectionMatrix();
+
+    const aspect = largura / altura;
+    const d = 12;
+    cameraOrtho.left = -d * aspect;
+    cameraOrtho.right = d * aspect;
+    cameraOrtho.top = d;
+    cameraOrtho.bottom = -d;
+    cameraOrtho.updateProjectionMatrix();
 }
 
 function animar() {
     requestAnimationFrame(animar);
     
-    // Animação de rotação para os objetos na cena
-    cena.children.forEach(obj => {
-        if (obj.isMesh) obj.rotation.y += 0.005;
-    });
+    // Movimento Simples (Requisito: Rotação leve para dar profundidade)
+    if (estruturaAtual) {
+        // Se houver objetos para rotacionar, adicione lógica aqui ou nas classes
+    }
 
     renderizador.render(cena, cameraAtiva);
 }
 
+// Início da aplicação
 inicializar();
