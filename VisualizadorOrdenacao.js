@@ -7,24 +7,41 @@ export class VisualizadorOrdenacao {
         this.barras = [];
         this.dados = [];
         this.quantidade = quantidade;
-        this.executando = false;
-        this.delayMs = 150; 
+        this.pausado = false;
+        this.passoAPasso = false;
+        this.proximoPasso = false;
+        this.delayMs = 200; 
+        this.abortar = false;
         this.criarElementos();
+    }
+
+    setVelocidade(valor) {
+        this.delayMs = 1001 - valor;
+    }
+
+    async controlarFluxo() {
+        if (this.abortar) throw new Error("Abortado");
+        if (this.passoAPasso) {
+            while (!this.proximoPasso && !this.abortar) {
+                await new Promise(r => setTimeout(r, 50));
+            }
+            this.proximoPasso = false; 
+        } else {
+            while (this.pausado && !this.abortar) {
+                await new Promise(r => setTimeout(r, 100));
+            }
+            await new Promise(r => setTimeout(r, this.delayMs));
+        }
     }
 
     criarElementos() {
         const geometria = new THREE.BoxGeometry(0.8, 1, 0.8);
-        
-        // AUMENTO DO ESPAÇAMENTO: de 1.2 para 1.5 para separar os itens
-        const espacamento = 1.5; 
+        const espacamento = 1.5;
         const offset = ((this.quantidade - 1) * espacamento) / 2;
 
         for (let i = 0; i < this.quantidade; i++) {
             const valor = Math.random() * 8 + 1;
-            
-            // CORES INDIVIDUAIS: Criando um gradiente baseado no índice 'i'
-            // Isso gera cores diferentes para cada barra para facilitar a visão
-            const hue = i / this.quantidade; // Varia de 0 a 1
+            const hue = i / this.quantidade;
             const corBase = new THREE.Color().setHSL(hue, 0.8, 0.5);
 
             const material = new THREE.RawShaderMaterial({
@@ -37,8 +54,6 @@ export class VisualizadorOrdenacao {
             });
 
             const barra = new THREE.Mesh(geometria, material);
-            
-            // Posicionamento com o novo espaçamento
             barra.position.x = (i * espacamento) - offset;
             barra.scale.y = valor;
             barra.position.y = valor / 2; 
@@ -51,73 +66,71 @@ export class VisualizadorOrdenacao {
 
     async trocar(i, j) {
         if (i === j) return;
-        
-        // Troca lógica nos dados
         [this.dados[i], this.dados[j]] = [this.dados[j], this.dados[i]];
-        
-        // Troca visual suave de posição
         const tempX = this.barras[i].position.x;
         this.barras[i].position.x = this.barras[j].position.x;
         this.barras[j].position.x = tempX;
-
-        // Troca no array de objetos para manter a sincronia
         [this.barras[i], this.barras[j]] = [this.barras[j], this.barras[i]];
-        
-        await new Promise(r => setTimeout(r, this.delayMs));
+        await this.controlarFluxo();
     }
 
     async destacar(indices, ligado) {
         indices.forEach(idx => {
-            if (this.barras[idx]) {
-                // O Shader mudará a cor para Amarelo se uHighlight for 1.0
-                this.barras[idx].material.uniforms.uHighlight.value = ligado ? 1.0 : 0.0;
-            }
+            if (this.barras[idx]) this.barras[idx].material.uniforms.uHighlight.value = ligado ? 1.0 : 0.0;
         });
     }
 
-    // --- ALGORITMOS MANTIDOS ---
-
     async bubbleSort() {
-        for (let i = 0; i < this.quantidade; i++) {
-            for (let j = 0; j < this.quantidade - i - 1; j++) {
-                await this.destacar([j, j + 1], true);
-                if (this.dados[j] > this.dados[j + 1]) await this.trocar(j, j + 1);
-                await this.destacar([j, j + 1], false);
+        try {
+            for (let i = 0; i < this.quantidade; i++) {
+                for (let j = 0; j < this.quantidade - i - 1; j++) {
+                    await this.destacar([j, j + 1], true);
+                    if (this.dados[j] > this.dados[j + 1]) await this.trocar(j, j + 1);
+                    else await this.controlarFluxo();
+                    await this.destacar([j, j + 1], false);
+                }
             }
-        }
+        } catch(e) {}
     }
 
     async selectionSort() {
-        for (let i = 0; i < this.quantidade; i++) {
-            let min = i;
-            for (let j = i + 1; j < this.quantidade; j++) {
-                await this.destacar([j, min], true);
-                if (this.dados[j] < this.dados[min]) min = j;
-                await this.destacar([j, min], false);
+        try {
+            for (let i = 0; i < this.quantidade; i++) {
+                let min = i;
+                for (let j = i + 1; j < this.quantidade; j++) {
+                    await this.destacar([j, min], true);
+                    if (this.dados[j] < this.dados[min]) min = j;
+                    await this.controlarFluxo();
+                    await this.destacar([j, min], false);
+                }
+                await this.trocar(i, min);
             }
-            await this.trocar(i, min);
-        }
+        } catch(e) {}
     }
 
     async insertionSort() {
-        for (let i = 1; i < this.quantidade; i++) {
-            let j = i;
-            while (j > 0 && this.dados[j - 1] > this.dados[j]) {
-                await this.destacar([j, j - 1], true);
-                await this.trocar(j, j - 1);
-                await this.destacar([j, j + 1], false);
-                j--;
+        try {
+            for (let i = 1; i < this.quantidade; i++) {
+                let j = i;
+                while (j > 0 && this.dados[j - 1] > this.dados[j]) {
+                    await this.destacar([j, j - 1], true);
+                    await this.trocar(j, j - 1);
+                    await this.destacar([j, j + 1], false);
+                    j--;
+                }
             }
-        }
+        } catch(e) {}
     }
 
     async heapSort() {
-        let n = this.quantidade;
-        for (let i = Math.floor(n / 2) - 1; i >= 0; i--) await this.heapify(n, i);
-        for (let i = n - 1; i > 0; i--) {
-            await this.trocar(0, i);
-            await this.heapify(i, 0);
-        }
+        try {
+            let n = this.quantidade;
+            for (let i = Math.floor(n / 2) - 1; i >= 0; i--) await this.heapify(n, i);
+            for (let i = n - 1; i > 0; i--) {
+                await this.trocar(0, i);
+                await this.heapify(i, 0);
+            }
+        } catch(e) {}
     }
 
     async heapify(n, i) {
@@ -135,12 +148,14 @@ export class VisualizadorOrdenacao {
     }
 
     async quickSort(inicio = 0, fim = this.quantidade - 1) {
-        if (inicio >= fim) return;
-        let pivoIdx = await this.particionar(inicio, fim);
-        await Promise.all([
-            this.quickSort(inicio, pivoIdx - 1),
-            this.quickSort(pivoIdx + 1, fim)
-        ]);
+        try {
+            if (inicio >= fim) return;
+            let pivoIdx = await this.particionar(inicio, fim);
+            await Promise.all([
+                this.quickSort(inicio, pivoIdx - 1),
+                this.quickSort(pivoIdx + 1, fim)
+            ]);
+        } catch(e) {}
     }
 
     async particionar(inicio, fim) {
@@ -159,12 +174,12 @@ export class VisualizadorOrdenacao {
     }
 
     limpar() {
+        this.abortar = true;
         this.barras.forEach(b => {
             b.geometry.dispose();
             b.material.dispose();
             this.scene.remove(b);
         });
         this.barras = [];
-        this.dados = [];
     }
 }
