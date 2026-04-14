@@ -153,11 +153,19 @@
         </div>
 
         <div id="panel-linear" class="controles-algoritmo hidden">
-            <h3>Operações</h3>
+            <h3 id="titulo-linear">Operações</h3>
+            
+            <select id="select-tipo-fila" class="hidden">
+                <option value="simples">Fila Simples (FIFO)</option>
+                <option value="prioridade">Fila de Prioridade</option>
+                <option value="circular">Fila Circular</option>
+            </select>
+
             <div class="flex">
                 <button id="btn-add">ADICIONAR (W)</button>
                 <button id="btn-remove">REMOVER (S)</button>
             </div>
+            <button id="btn-buscar" style="width:100%; margin-top:8px; background:#6600cc;">BUSCAR ITEM</button>
         </div>
 
         <div id="panel-grafo" class="controles-algoritmo hidden">

@@ -30,7 +30,7 @@ export class VisualizadorOrdenacao {
             while (this.pausado && !this.abortar) {
                 await new Promise(r => setTimeout(r, 100));
             }
-            await new Promise(r => setTimeout(r, this.delayMs));
+            // O delay é controlado pela velocidade da animação de deslize
         }
     }
 
@@ -64,12 +64,41 @@ export class VisualizadorOrdenacao {
         }
     }
 
+    // Anima o movimento de arrastar
+    async animarTroca(idxA, idxB) {
+        const objA = this.barras[idxA];
+        const objB = this.barras[idxB];
+        const destinoA = objB.position.x;
+        const destinoB = objA.position.x;
+
+        const duracao = Math.max(100, this.delayMs);
+        const inicio = performance.now();
+
+        return new Promise(resolve => {
+            const passo = (agora) => {
+                const progresso = Math.min((agora - inicio) / duracao, 1);
+                
+                // Interpolação linear da posição X
+                objA.position.x = THREE.MathUtils.lerp(objA.position.x, destinoA, progresso);
+                objB.position.x = THREE.MathUtils.lerp(objB.position.x, destinoB, progresso);
+
+                if (progresso < 1) {
+                    requestAnimationFrame(passo);
+                } else {
+                    // Garante que as posições sejam exatas no final
+                    objA.position.x = destinoA;
+                    objB.position.x = destinoB;
+                    resolve();
+                }
+            };
+            requestAnimationFrame(passo);
+        });
+    }
+
     async trocar(i, j) {
         if (i === j) return;
         [this.dados[i], this.dados[j]] = [this.dados[j], this.dados[i]];
-        const tempX = this.barras[i].position.x;
-        this.barras[i].position.x = this.barras[j].position.x;
-        this.barras[j].position.x = tempX;
+        await this.animarTroca(i, j);
         [this.barras[i], this.barras[j]] = [this.barras[j], this.barras[i]];
         await this.controlarFluxo();
     }
@@ -85,8 +114,11 @@ export class VisualizadorOrdenacao {
             for (let i = 0; i < this.quantidade; i++) {
                 for (let j = 0; j < this.quantidade - i - 1; j++) {
                     await this.destacar([j, j + 1], true);
-                    if (this.dados[j] > this.dados[j + 1]) await this.trocar(j, j + 1);
-                    else await this.controlarFluxo();
+                    if (this.dados[j] > this.dados[j + 1]) {
+                        await this.trocar(j, j + 1);
+                    } else {
+                        await this.controlarFluxo();
+                    }
                     await this.destacar([j, j + 1], false);
                 }
             }
@@ -151,10 +183,8 @@ export class VisualizadorOrdenacao {
         try {
             if (inicio >= fim) return;
             let pivoIdx = await this.particionar(inicio, fim);
-            await Promise.all([
-                this.quickSort(inicio, pivoIdx - 1),
-                this.quickSort(pivoIdx + 1, fim)
-            ]);
+            await this.quickSort(inicio, pivoIdx - 1);
+            await this.quickSort(pivoIdx + 1, fim);
         } catch(e) {}
     }
 
