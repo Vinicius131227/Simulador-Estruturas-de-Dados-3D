@@ -5,81 +5,166 @@ export class VisualizadorGrafo {
         this.cena = cena;
         this.nos = [];
         this.arestas = [];
+        this.raioNo = 0.7;
+        this.yMin = this.raioNo + 0.35;
+
         this.posicoes = [
-            new THREE.Vector3(-6, 0, 0),  // 0: Início
-            new THREE.Vector3(-2, 3, 0),  // 1
-            new THREE.Vector3(2, 3, 0),   // 2
-            new THREE.Vector3(6, 0, 0),   // 3: Fim
-            new THREE.Vector3(0, -3, 0)   // 4: Nó de Ciclo
+            new THREE.Vector3(-6, 2.2, 0),  // 0: Início
+            new THREE.Vector3(-2, 5.0, 0),  // 1
+            new THREE.Vector3(2, 5.0, 0),   // 2
+            new THREE.Vector3(6, 2.2, 0),   // 3: Fim
+            new THREE.Vector3(0, 1.4, 0)    // 4: Nó inferior, acima do chão
+        ];
+
+        this.conexoes = [
+            [0, 1],
+            [1, 2],
+            [2, 3],
+            [0, 4],
+            [4, 2]
         ];
     }
 
     desenhar() {
-        const geoNo = new THREE.IcosahedronGeometry(0.7, 1);
-        this.posicoes.forEach((pos) => {
-            const matNo = new THREE.MeshStandardMaterial({ color: 0x888888 });
+        this.limpar();
+
+        const geoNo = new THREE.IcosahedronGeometry(this.raioNo, 1);
+
+        this.posicoes.forEach((posOriginal, indice) => {
+            const pos = posOriginal.clone();
+            pos.y = Math.max(this.yMin, pos.y);
+
+            const matNo = new THREE.MeshStandardMaterial({
+                color: 0x888888,
+                emissive: 0x111111,
+                emissiveIntensity: 0.2
+            });
+
             const no = new THREE.Mesh(geoNo, matNo);
             no.position.copy(pos);
             this.cena.add(no);
             this.nos.push(no);
+
+            const label = this.criarLabel(`${indice}`, pos.x, pos.y + 1.1, 0);
+            this.cena.add(label);
+            this.nos.push(label);
         });
 
-        // Definição das conexões (arestas)
-        this.conectar(0, 1); // aresta 0
-        this.conectar(1, 2); // aresta 1
-        this.conectar(2, 3); // aresta 2
-        this.conectar(0, 4); // aresta 3
-        this.conectar(4, 2); // aresta 4
+        this.conexoes.forEach(([i, j]) => this.conectar(i, j));
     }
 
     conectar(i, j) {
-        const pontos = [this.posicoes[i], this.posicoes[j]];
-        const geoLinha = new THREE.BufferGeometry().setFromPoints(pontos);
+        const p1 = this.pegarPosicaoNo(i);
+        const p2 = this.pegarPosicaoNo(j);
+
+        const geoLinha = new THREE.BufferGeometry().setFromPoints([p1, p2]);
         const matLinha = new THREE.LineBasicMaterial({ color: 0x444444 });
         const linha = new THREE.Line(geoLinha, matLinha);
+
         this.cena.add(linha);
         this.arestas.push(linha);
     }
 
-    // ALGORITMO 1: DIJKSTRA (Caminho mais curto direto)
+    pegarPosicaoNo(indice) {
+        const p = this.posicoes[indice].clone();
+        p.y = Math.max(this.yMin, p.y);
+        return p;
+    }
+
+    criarLabel(texto, x, y, z) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, 128, 128);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 54px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(texto, 64, 64);
+
+        const textura = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({
+            map: textura,
+            transparent: true
+        });
+
+        const sprite = new THREE.Sprite(material);
+        sprite.position.set(x, y, z);
+        sprite.scale.set(1.2, 0.7, 1);
+
+        return sprite;
+    }
+
     async rodarDijkstra() {
         this.resetarCores();
-        console.log("Executando Dijkstra...");
-        const caminhoCaminho = [0, 1, 2, 3]; // Sequência de nós
-        const arestasCaminho = [0, 1, 2];    // Sequência de arestas
 
-        for (let i = 0; i < caminhoCaminho.length; i++) {
-            this.nos[caminhoCaminho[i]].material.color.set(0x00ffff); // Azul claro: Visitando
-            if (i > 0) this.arestas[arestasCaminho[i-1]].material.color.set(0x00ffff);
+        const caminhoNos = [0, 1, 2, 3];
+        const caminhoArestas = [0, 1, 2];
+
+        for (let i = 0; i < caminhoNos.length; i++) {
+            const no = this.nos[caminhoNos[i] * 2];
+            no.material.color.set(0x00ffff);
+            no.material.emissive.set(0x00ffff);
+
+            if (i > 0) {
+                this.arestas[caminhoArestas[i - 1]].material.color.set(0x00ffff);
+            }
+
             await new Promise(r => setTimeout(r, 600));
-            this.nos[caminhoCaminho[i]].material.color.set(0x00ff00); // Verde: Finalizado
+
+            no.material.color.set(0x00ff00);
+            no.material.emissive.set(0x003300);
         }
     }
 
-    // ALGORITMO 2: BELLMAN-FORD (Relaxamento e Ciclo Negativo)
     async rodarBellmanFord() {
         this.resetarCores();
-        console.log("Executando Bellman-Ford...");
-        // Relaxa todas as arestas
+
         for (let i = 0; i < this.arestas.length; i++) {
-            this.arestas[i].material.color.set(0xffaa00); // Laranja: Relaxando
+            this.arestas[i].material.color.set(0xffaa00);
             await new Promise(r => setTimeout(r, 400));
         }
-        // Simula detecção de ciclo negativo no caminho alternativo (0-4-2)
-        this.arestas[3].material.color.set(0xff0000); 
+
+        this.arestas[3].material.color.set(0xff0000);
         this.arestas[4].material.color.set(0xff0000);
-        this.nos[4].material.color.set(0xff0000);
-        console.warn("Ciclo negativo detectado!");
+
+        const noCiclo = this.nos[4 * 2];
+        noCiclo.material.color.set(0xff0000);
+        noCiclo.material.emissive.set(0x440000);
+
+        console.warn('Ciclo negativo detectado!');
     }
 
     resetarCores() {
-        this.nos.forEach(n => n.material.color.set(0x888888));
+        for (let i = 0; i < this.nos.length; i++) {
+            const obj = this.nos[i];
+
+            if (obj instanceof THREE.Mesh) {
+                obj.material.color.set(0x888888);
+                obj.material.emissive.set(0x111111);
+            }
+        }
+
         this.arestas.forEach(a => a.material.color.set(0x444444));
     }
 
     limpar() {
-        this.nos.forEach(n => this.cena.remove(n));
-        this.arestas.forEach(a => this.cena.remove(a));
-        this.nos = []; this.arestas = [];
+        this.nos.forEach(obj => {
+            if (obj.geometry) obj.geometry.dispose();
+            if (obj.material?.map) obj.material.map.dispose();
+            if (obj.material) obj.material.dispose();
+            this.cena.remove(obj);
+        });
+
+        this.arestas.forEach(a => {
+            if (a.geometry) a.geometry.dispose();
+            if (a.material) a.material.dispose();
+            this.cena.remove(a);
+        });
+
+        this.nos = [];
+        this.arestas = [];
     }
 }

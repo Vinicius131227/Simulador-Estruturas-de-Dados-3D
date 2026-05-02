@@ -7,10 +7,9 @@
     <title>Simulador 3D - Estruturas de Dados</title>
 </head>
 <body>
-
     <div id="gui-container">
         <h2>Simulador 3D</h2>
-        
+
         <h3>Estruturas</h3>
         <div class="menu-group">
             <button onclick="window.setEstrutura('ordenacao')">Ordenação</button>
@@ -31,17 +30,17 @@
                 <option value="quick">Quick Sort</option>
                 <option value="heap">Heap Sort</option>
             </select>
-            
+
             <div class="flex">
-                <button id="btn-start-auto" style="background: #004422;">AUTO</button>
-                <button id="btn-start-step" style="background: #444400;">STEP</button>
+                <button id="btn-start-auto" style="background:#004422;">AUTO</button>
+                <button id="btn-start-step" style="background:#444400;">STEP</button>
             </div>
 
             <button id="btn-next-step" class="hidden" style="width:100%; margin-top:8px; background:#0044ff;">
                 PRÓXIMO PASSO ➡
             </button>
 
-            <div class="flex" style="margin-top: 10px;">
+            <div class="flex" style="margin-top:10px;">
                 <button id="btn-pause-sort">PAUSA/PLAY</button>
                 <button id="btn-reset-sort" style="background:#661111;">RESETAR</button>
             </div>
@@ -52,7 +51,7 @@
 
         <div id="panel-linear" class="controles-algoritmo hidden">
             <h3 id="titulo-linear">Operações</h3>
-            
+
             <select id="select-tipo-fila" class="hidden">
                 <option value="simples">Fila Simples</option>
                 <option value="prioridade">Fila Prioridade</option>
@@ -66,24 +65,63 @@
             </select>
 
             <div id="inputs-lista" class="input-box hidden">
-                <label style="font-size: 0.7em; color: #fff;">VALOR (Número da Bola):</label>
+                <label style="font-size:0.7em; color:#fff;">VALOR (Número da Bola):</label>
                 <input type="number" id="input-valor" placeholder="Ex: 42 (Deixe vazio p/ aleatório)">
-                
-                <label style="font-size: 0.7em; color: #00ffcc; display: block; margin-top: 8px;">ÍNDICE (Posição na Lista):</label>
+
+                <label style="font-size:0.7em; color:#00ffcc; display:block; margin-top:8px;">ÍNDICE (Posição na Lista):</label>
                 <input type="number" id="input-indice" placeholder="Ex: 0, 1 (Deixe vazio p/ fim)">
             </div>
 
             <div class="flex">
-                <button id="btn-add">ADICIONAR</button>
-                <button id="btn-remove">REMOVER</button>
+                <button id="btn-add-linear">ADICIONAR</button>
+                <button id="btn-remove-linear">REMOVER</button>
             </div>
-            <button id="btn-buscar" style="width:100%; margin-top:8px; background:#6600cc;">BUSCAR VALOR</button>
+
+            <div class="flex" style="margin-top:8px;">
+                <button id="btn-buscar-linear" style="flex:1; background:#6600cc;">BUSCAR VALOR</button>
+                <button id="btn-reset-linear" style="flex:1; background:#661111;">RESETAR</button>
+            </div>
+        </div>
+
+        <div id="panel-arvore" class="controles-algoritmo hidden">
+            <h3>Tipo de Árvore</h3>
+            <select id="select-tipo-arvore">
+                <option value="abb">ABB</option>
+                <option value="avl">AVL</option>
+                <option value="redblack">Red-Black</option>
+                <option value="doisquatro">2-4</option>
+            </select>
+
+            <div id="inputs-arvore" class="input-box">
+                <label style="font-size:0.7em; color:#fff;">VALOR:</label>
+                <input type="number" id="input-valor-arvore" placeholder="Ex: 20">
+            </div>
+
+            <div class="flex">
+                <button id="btn-gerar-arvore">GERAR EXEMPLO</button>
+                <button id="btn-reset-arvore">RESETAR</button>
+            </div>
+
+            <div class="flex" style="margin-top:8px;">
+                <button id="btn-add-arvore">INSERIR</button>
+                <button id="btn-remove-arvore">REMOVER</button>
+            </div>
+
+            <button id="btn-buscar-arvore" style="width:100%; margin-top:8px; background:#6600cc;">
+                BUSCAR VALOR
+            </button>
         </div>
 
         <div id="panel-grafo" class="controles-algoritmo hidden">
             <h3>Algoritmos</h3>
             <button id="btn-dijkstra" style="width:100%; margin-bottom:5px;">Dijkstra</button>
-            <button id="btn-bellman" style="width:100%;">Bellman-Ford</button>
+            <button id="btn-bellman" style="width:100%; margin-bottom:5px;">Bellman-Ford</button>
+            <button id="btn-reset-grafo" style="width:100%; background:#661111;">RESETAR</button>
+        </div>
+
+        <div id="panel-matriz" class="controles-algoritmo hidden">
+            <h3>Matriz Esparsa</h3>
+            <button id="btn-reset-matriz" style="width:100%; background:#661111;">GERAR OUTRA MATRIZ</button>
         </div>
 
         <div class="info-footer">
